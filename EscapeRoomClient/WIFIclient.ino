@@ -1,39 +1,65 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <WiFiUdp.h>
 #include <ESP8266HTTPClient.h>
 
 const char* ssid = "Project";
 const char* pswd = "88888888";
 
 WiFiClient client;
-int server_port = 80; 
+int server_port = 80;
 
-unsigned long previousMillis = 0;
+int secretCode[4];
+
+unsigned long previousWifiMillis = 0;
+
+void generateRandomCode() {
+  randomSeed(analogRead(A0));
+  for (int i = 0; i < 4; i++) {
+    secretCode[i] = random(0, 10);
+  }
+}
 
 void wifi_Setup() {
   Serial.println("wifiSetup");
   WiFi.begin(ssid, pswd);
-  previousMillis = millis();
+  previousWifiMillis = millis(); 
 
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.println("trying ...");
-    if(millis() - previousMillis >= 100){
-      previousMillis = millis();
-    }
-   
-  }
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   Serial.println("trying ...");
+  //   if (millis() - previousWifiMillis >= 100) {
+  //     previousWifiMillis = millis();
+  //   }
+  // }
+
   Serial.println("Connected to network");
 
-  SendData();
+  generateRandomCode();
 }
-
 
 void SendData(int digit) {
   HTTPClient http;
-  http.begin(client, "http://55.55.55.55/addDigit?digit=" + digit);
+  String url = "http://55.55.55.55/addDigit?digit=" + String(digit);
+  http.begin(client, url);
   int httpCode = http.GET();
-  Serial.println(httpCode);
+  String payload = http.getString();
   http.end();
 }
 
+void SendCodeDigit(int puzzleNumber) {
+  if (puzzleNumber >= 0 && puzzleNumber < 4) {
+    int digit = secretCode[puzzleNumber];
+    SendData(digit); 
+    Serial.print("שליחת ספרה ");
+    Serial.print(puzzleNumber + 1);
+    Serial.print(" מהקוד: ");
+    Serial.println(digit);
+  }
+}
+
+void puzzleSolved(int puzzleNumber) {
+  Serial.print("חידה מספר ");
+  Serial.print(puzzleNumber + 1);
+  Serial.println(" נפתרה!");
+
+  SendCodeDigit(puzzleNumber);
+}
