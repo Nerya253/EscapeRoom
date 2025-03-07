@@ -1,7 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-
 #include <DIYables_4Digit7Segment_74HC595.h> 
+
 
 #define SCLK  D5 
 #define RCLK  D6 
@@ -16,18 +16,22 @@ ESP8266WebServer server(80);
 
 DIYables_4Digit7Segment_74HC595 display(SCLK, RCLK, DIO);
 
-unsigned long previousMillis = 0; 
+unsigned long previousMillis = 0;
+
+void displayCode();
+void handleRoot();
+void handleNotFound();
 
 void WiFi_setup() {
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
   WiFi.softAP(ssid, password);
   server.on("/", handleRoot);
+  server.on("/addDigit", displayCode);
   server.onNotFound(handleNotFound);
   Serial.println("HTTP server started");
   server.begin();
   previousMillis = millis();
-  // display.printInt(-13, false);  כתיבה על הלוח
 }
 
 void WiFi_loop() {
@@ -57,7 +61,22 @@ void handleNotFound() {
   server.send(404, "text/plain", message);
 }
 
- 
+ int code = 0;
+void displayCode() {
+  if (server.hasArg("digit")) {
+    String digitVal = server.arg("digit");
+    if (code == 0) {
+      code += digitVal.toInt();
+    } else {
+      code = code * 10 + digitVal.toInt();
+    }
+  }
+  display.clear();
+  display.printInt(code, false);
+  display.show();
+}
+
+
 void handleRoot() {
   
   String html = R"rowliteral(
