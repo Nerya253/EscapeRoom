@@ -1,4 +1,13 @@
+#include <DHT_U.h>
+#include <DHT.h>
+
 #define LIGHT_SENSOR A0
+#define FUN D4
+#define DHTPIN D5  
+#define DHTTYPE DHT11  
+
+DHT dht(DHTPIN, DHTTYPE); 
+
 
 
 extern int secretCode[4];
@@ -15,14 +24,17 @@ unsigned long lightCorrectStartTime = 0;
 int maxLightLevel = 0;
 int currentPuzzle = 0;
 bool inCorrectLightRange = false;
-bool samplingMaxLight = true;         
-unsigned long samplingStartTime = 0;   
+bool samplingMaxLight = true;
+unsigned long samplingStartTime = 0;
 
 
 void setup() {
   Serial.begin(9600);
   wifi_Setup();
-  pinMode(LIGHT_SENSOR, INPUT); 
+  pinMode(LIGHT_SENSOR, INPUT);
+  pinMode(FUN, OUTPUT);
+  digitalWrite(FUN, HIGH);
+	dht.begin(); 
 
   samplingStartTime = millis();
 }
@@ -59,22 +71,22 @@ void loop() {
 
 void handleLightPuzzle() {
   static unsigned long lastLightCheckMillis = 0;
-  
+
   int lightLevel = analogRead(LIGHT_SENSOR);
-  
+
   if (samplingMaxLight) {
     if (lightLevel > maxLightLevel) {
       maxLightLevel = lightLevel;
     }
-    
+
     if (currentLightMillis - samplingStartTime >= 5000) {
-      samplingMaxLight = false; 
+      samplingMaxLight = false;
       Serial.print("דגימת האור הסתיימה. רמת אור מקסימלית: ");
       Serial.println(maxLightLevel);
       Serial.print("רמת אור יעד (80%): ");
       Serial.println(maxLightLevel * 0.8);
     }
-    return; 
+    return;
   }
 
   if (lightLevel > maxLightLevel) {
@@ -86,16 +98,15 @@ void handleLightPuzzle() {
       inCorrectLightRange = true;
       lightCorrectStartTime = currentLightMillis;
       Serial.println("נכנס לטווח האור המתאים");
-    } 
-    else if (currentLightMillis - lightCorrectStartTime >= 2000) {
+    } else if (currentLightMillis - lightCorrectStartTime >= 2000) {
       Serial.println("החידה נפתרה! האור היה בטווח הנכון למשך 2 שניות");
       puzzleSolved(0);
       currentPuzzle++;
       inCorrectLightRange = false;
-      maxLightLevel = 0; 
+      maxLightLevel = 0;
+      digitalWrite(FUN, LOW);
     }
-  } 
-  else {
+  } else {
     if (inCorrectLightRange) {
       Serial.println("יצא מטווח האור המתאים - מתחיל מחדש");
       inCorrectLightRange = false;
@@ -103,14 +114,57 @@ void handleLightPuzzle() {
   }
 }
 
+//חידת טמפרטורה
+float currentTemp = 0;
+float targetTemp = 0;
+bool tempPuzzleSolved = false;
+bool tempInCorrectRange = false;
+unsigned long tempCorrectStartTime = 0;
+static unsigned long lastTempCheckMillis = 0;
+
 void handleTemperaturePuzzle() {
-  Serial.println("בדיקת טמפרטורה");
+  if (currentLightMillis - lastTempCheckMillis >= 2000) {
+    lastTempCheckMillis = currentLightMillis;
+    
+    float t = dht.readTemperature();
+    
+    currentTemp = t;
+    Serial.print("Temperature = ");
+    Serial.println(currentTemp);
+    
+    if (targetTemp == 0) {
+      targetTemp = currentTemp - 0.2;
+      Serial.print("טמפרטורת יעד: ");
+      Serial.println(targetTemp);
+          }
+  
+    if (currentTemp <= targetTemp) {
+      if (!tempInCorrectRange) {
+        tempInCorrectRange = true;
+        tempCorrectStartTime = currentLightMillis;
+        Serial.println("הגיע לטמפרטורה הרצויה!");
+      } else if (currentLightMillis - tempCorrectStartTime >= 2000) {
+        Serial.println("החידה נפתרה! הטמפרטורה ירדה מספיק למשך 2 שניות");
+        puzzleSolved(1);
+        digitalWrite(FUN, HIGH);
+        currentPuzzle++;
+        tempPuzzleSolved = true;
+      }
+    } else {
+      if (tempInCorrectRange) {
+        Serial.println("הטמפרטורה עלתה מעל היעד - מתחיל מחדש");
+        tempInCorrectRange = false;
+      }
+    }
+  }
 }
 
 void handleLEDSequencePuzzle() {
   Serial.println("בדיקת מנורות");
+  delay(5000);
 }
 
 void handleDistancePuzzle() {
   Serial.println("בדיקת מרחק");
+  delay(5000);
 }
