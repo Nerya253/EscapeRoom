@@ -1,14 +1,17 @@
 #include <DHT_U.h>
 #include <DHT.h>
 
-#define LIGHT_SENSOR A0
 #define FUN D4
-#define DHTPIN D5  
-#define DHTTYPE DHT11  
 
-DHT dht(DHTPIN, DHTTYPE); 
+#define DHTPIN D1
+#define DHTTYPE DHT11
 
+#define pinMuxA D5
+#define pinMuxB D6
+#define pinMuxC D7
+#define pinMuxInOut A0
 
+DHT dht(DHTPIN, DHTTYPE);
 
 extern int secretCode[4];
 void SendData(int digit);
@@ -31,16 +34,20 @@ unsigned long samplingStartTime = 0;
 void setup() {
   Serial.begin(9600);
   wifi_Setup();
-  pinMode(LIGHT_SENSOR, INPUT);
+  pinMode(pinMuxA, OUTPUT);
+  pinMode(pinMuxB, OUTPUT);
+  pinMode(pinMuxC, OUTPUT);
+  pinMode(pinMuxInOut, INPUT);
   pinMode(FUN, OUTPUT);
   digitalWrite(FUN, HIGH);
-	dht.begin(); 
+  dht.begin();
 
   samplingStartTime = millis();
 }
 
 void loop() {
   currentLightMillis = millis();
+
 
   static unsigned long statusPrintTimer = 0;
   if (currentLightMillis - statusPrintTimer >= 5000) {
@@ -69,10 +76,24 @@ void loop() {
   }
 }
 
+int ReadMuxChannel(byte chnl) {
+
+  int a = (bitRead(chnl, 0) > 0) ? HIGH : LOW;
+  int b = (bitRead(chnl, 1) > 0) ? HIGH : LOW;
+  int c = (bitRead(chnl, 2) > 0) ? HIGH : LOW;
+
+  digitalWrite(pinMuxA, a);
+  digitalWrite(pinMuxB, b);
+  digitalWrite(pinMuxC, c);
+
+  int ret = analogRead(pinMuxInOut);
+  return ret;
+}
+
 void handleLightPuzzle() {
   static unsigned long lastLightCheckMillis = 0;
 
-  int lightLevel = analogRead(LIGHT_SENSOR);
+  int lightLevel = ReadMuxChannel(0);
 
   if (samplingMaxLight) {
     if (lightLevel > maxLightLevel) {
@@ -125,19 +146,19 @@ static unsigned long lastTempCheckMillis = 0;
 void handleTemperaturePuzzle() {
   if (currentLightMillis - lastTempCheckMillis >= 2000) {
     lastTempCheckMillis = currentLightMillis;
-    
+
     float t = dht.readTemperature();
-    
+
     currentTemp = t;
     Serial.print("Temperature = ");
     Serial.println(currentTemp);
-    
+
     if (targetTemp == 0) {
       targetTemp = currentTemp - 0.2;
       Serial.print("טמפרטורת יעד: ");
       Serial.println(targetTemp);
-          }
-  
+    }
+
     if (currentTemp <= targetTemp) {
       if (!tempInCorrectRange) {
         tempInCorrectRange = true;
