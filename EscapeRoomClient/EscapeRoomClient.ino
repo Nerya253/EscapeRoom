@@ -4,7 +4,7 @@
 #define FUN D1
 
 #define DHTPIN D4
-#define DHTTYPE DHT11
+#define DHTTYPE DHT22
 
 #define pinMuxA D5
 #define pinMuxB D6
@@ -79,13 +79,14 @@ void setup() {
   Serial.begin(9600);
   wifi_Setup();
 
+  pinMode(FUN, OUTPUT);
+  digitalWrite(FUN, HIGH);
+
   pinMode(A0, INPUT);
   pinMode(pinMuxA, OUTPUT);
   pinMode(pinMuxB, OUTPUT);
   pinMode(pinMuxC, OUTPUT);
   pinMode(pinMuxInOut, INPUT);
-
-  pinMode(FUN, OUTPUT);
 
   pinMode(R_LED, OUTPUT);
   pinMode(G_LED, OUTPUT);
@@ -94,7 +95,6 @@ void setup() {
   pinMode(G_BTN, INPUT_PULLUP);
   pinMode(B_BTN, INPUT_PULLUP);
 
-  digitalWrite(FUN, HIGH);
   dht.begin();
 
   digitalWrite(A0, LOW); 
@@ -159,6 +159,13 @@ int ReadMuxChannel(byte chnl) {
 }
 
 void handleLightPuzzle() {
+  digitalWrite(FUN, HIGH);
+  pinMode(A0, INPUT);
+  pinMode(pinMuxA, OUTPUT);
+  pinMode(pinMuxB, OUTPUT);
+  pinMode(pinMuxC, OUTPUT);
+
+
   static unsigned long lastLightCheckMillis = 0;
 
   int lightLevel = ReadMuxChannel(0);
@@ -207,6 +214,8 @@ void handleLightPuzzle() {
 }
 
 void handleTemperaturePuzzle() {
+  pinMode(FUN, OUTPUT);
+
   if (currentLightMillis - lastTempCheckMillis >= 2000) {
     lastTempCheckMillis = currentLightMillis;
 
@@ -217,7 +226,7 @@ void handleTemperaturePuzzle() {
     Serial.println(currentTemp);
 
     if (targetTemp == 0) {
-      targetTemp = currentTemp - 0.2;
+      targetTemp = currentTemp - 0.1;
       Serial.print("טמפרטורת יעד: ");
       Serial.println(targetTemp);
     }
@@ -260,6 +269,13 @@ void generateRandomSequence() {
 }
 
 void handleLEDSequencePuzzle() {
+  pinMode(R_LED, OUTPUT);
+  pinMode(G_LED, OUTPUT);
+  pinMode(B_LED, OUTPUT);
+  pinMode(R_BTN, INPUT_PULLUP);
+  pinMode(G_BTN, INPUT_PULLUP);
+  pinMode(B_BTN, INPUT_PULLUP);
+
   if (showingStartSequence) {
     handleStartSequence();
     return;
@@ -329,8 +345,9 @@ void handleLEDSequencePuzzle() {
             showingVictory = true;
             victoryStep = 0;
             victoryTime = millis();
-            puzzleSolved(2); 
-            currentPuzzle++;
+            puzzleSolved(2);
+            // הסרתי את העלאת מספר החידה מכאן
+            // currentPuzzle++;
           }
         } else {
           isBlinking = true;
@@ -426,6 +443,9 @@ void handleVictoryAnimation() {
       showingStartSequence = true;
       startSequenceCount = 0;
       startSequenceTime = millis();
+      
+      // הוספתי את העלאת מספר החידה כאן, בסוף אנימציית הניצחון
+      currentPuzzle++;
     }
   }
 }
