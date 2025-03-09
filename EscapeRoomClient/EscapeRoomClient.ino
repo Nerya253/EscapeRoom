@@ -1,9 +1,9 @@
 #include <DHT_U.h>
 #include <DHT.h>
 
-#define FUN D1
+#define FUN D4
 
-#define DHTPIN D4
+#define DHTPIN D7
 #define DHTTYPE DHT22
 
 #define pinMuxA D5
@@ -26,6 +26,8 @@ void SendData(int digit);
 void SendCodeDigit(int puzzleNumber);
 void puzzleSolved(int puzzleNumber);
 void wifi_Setup();
+void SendGameOn();
+
 
 int currentPuzzle = 0;
 unsigned long currentLightMillis = 0;
@@ -74,43 +76,35 @@ bool showingStartSequence = true;
 int startSequenceCount = 0;
 unsigned long startSequenceTime = 0;
 
+bool gameIsOn = false;
 
 void setup() {
   Serial.begin(9600);
   wifi_Setup();
 
-  pinMode(FUN, OUTPUT);
-  digitalWrite(FUN, HIGH);
-
-  pinMode(A0, INPUT);
-  pinMode(pinMuxA, OUTPUT);
-  pinMode(pinMuxB, OUTPUT);
-  pinMode(pinMuxC, OUTPUT);
-  pinMode(pinMuxInOut, INPUT);
 
   pinMode(R_LED, OUTPUT);
   pinMode(G_LED, OUTPUT);
   pinMode(B_LED, OUTPUT);
-  pinMode(R_BTN, INPUT_PULLUP);
-  pinMode(G_BTN, INPUT_PULLUP);
-  pinMode(B_BTN, INPUT_PULLUP);
-
-  dht.begin();
-
-  digitalWrite(A0, LOW); 
-
   digitalWrite(R_LED, LOW);
   digitalWrite(G_LED, LOW);
   digitalWrite(B_LED, LOW);
 
+  pinMode(pinMuxA, OUTPUT);
+  pinMode(pinMuxB, OUTPUT);
+  pinMode(pinMuxC, OUTPUT);
+  pinMode(pinMuxInOut, INPUT);
+  digitalWrite(A0, LOW);
+
+
   for (int i = 0; i < 10; i++) {
     analogRead(A0);
   }
-
   generateRandomSequence();
 
+
   samplingStartTime = millis();
-  
+
   showingStartSequence = true;
   startSequenceCount = 0;
   startSequenceTime = millis();
@@ -119,29 +113,56 @@ void setup() {
 void loop() {
   currentLightMillis = millis();
   static unsigned long statusPrintTimer = 0;
+
   if (currentLightMillis - statusPrintTimer >= 5000) {
     statusPrintTimer = currentLightMillis;
     Serial.print("מצב נוכחי: חידה ");
     Serial.println(currentPuzzle + 1);
   }
 
+  if (ReadMuxChannel(0) > 50) {
+    if (!gameIsOn) {
+      SendGameOn();
+    }
+    gameIsOn = true;
+  }
   if (currentLightMillis - lastSensorReadMillis >= 1000) {
     lastSensorReadMillis = currentLightMillis;
   }
 
-  switch (currentPuzzle) {
-    case 0:
-      handleLightPuzzle();
-      break;
-    case 1:
-      handleTemperaturePuzzle();
-      break;
-    case 2:
-      handleLEDSequencePuzzle();
-      break;
-    case 3:
-      handleDistancePuzzle();
-      break;
+  if (gameIsOn == true) {
+    switch (currentPuzzle) {
+      case 0:
+        pinMode(R_LED, OUTPUT);
+        pinMode(G_LED, OUTPUT);
+        pinMode(B_LED, OUTPUT);
+        digitalWrite(R_LED, LOW);
+        digitalWrite(G_LED, LOW);
+        digitalWrite(B_LED, LOW);
+        pinMode(A0, INPUT);
+        pinMode(pinMuxA, OUTPUT);
+        pinMode(pinMuxB, OUTPUT);
+        pinMode(pinMuxC, OUTPUT);
+        pinMode(pinMuxInOut, INPUT);
+        digitalWrite(A0, LOW);
+        handleLightPuzzle();
+        break;
+      case 1:
+        dht.begin();
+        pinMode(FUN, OUTPUT);
+        digitalWrite(FUN, LOW);
+        handleTemperaturePuzzle();
+        break;
+      case 2:
+        pinMode(R_BTN, INPUT_PULLUP);
+        pinMode(G_BTN, INPUT_PULLUP);
+        pinMode(B_BTN, INPUT_PULLUP);
+        handleLEDSequencePuzzle();
+        break;
+      case 3:
+        handleDistancePuzzle();
+        break;
+    }
   }
 }
 
@@ -159,12 +180,6 @@ int ReadMuxChannel(byte chnl) {
 }
 
 void handleLightPuzzle() {
-  digitalWrite(FUN, HIGH);
-  pinMode(A0, INPUT);
-  pinMode(pinMuxA, OUTPUT);
-  pinMode(pinMuxB, OUTPUT);
-  pinMode(pinMuxC, OUTPUT);
-
 
   static unsigned long lastLightCheckMillis = 0;
 
@@ -184,14 +199,14 @@ void handleLightPuzzle() {
   if (lightLevel > maxLightLevel) {
     maxLightLevel = lightLevel;
   }
-  
+
   Serial.print("רמת אור: ");
   Serial.print(lightLevel);
   Serial.print(" רמת אור מקסימלית: ");
   Serial.print(maxLightLevel);
   Serial.print(" רמת אור יעד (80%): ");
   Serial.println(maxLightLevel * 0.8);
-  
+
   if (lightLevel <= maxLightLevel * 0.8) {
     if (!inCorrectLightRange) {
       inCorrectLightRange = true;
@@ -203,7 +218,6 @@ void handleLightPuzzle() {
       currentPuzzle++;
       inCorrectLightRange = false;
       maxLightLevel = 0;
-      digitalWrite(FUN, LOW);
     }
   } else {
     if (inCorrectLightRange) {
@@ -269,41 +283,34 @@ void generateRandomSequence() {
 }
 
 void handleLEDSequencePuzzle() {
-  pinMode(R_LED, OUTPUT);
-  pinMode(G_LED, OUTPUT);
-  pinMode(B_LED, OUTPUT);
-  pinMode(R_BTN, INPUT_PULLUP);
-  pinMode(G_BTN, INPUT_PULLUP);
-  pinMode(B_BTN, INPUT_PULLUP);
-
   if (showingStartSequence) {
     handleStartSequence();
     return;
   }
-  
+
   if (isBlinking) {
     handleErrorBlink();
     return;
   }
-  
+
   if (showingVictory) {
     handleVictoryAnimation();
     return;
   }
-  
+
   if (waitingForButtonRelease) {
     if (digitalRead(buttons[lastPressedButton]) == HIGH) {
-      digitalWrite(leds[lastPressedButton], LOW); 
+      digitalWrite(leds[lastPressedButton], LOW);
       waitingForButtonRelease = false;
       buttonReleaseTime = millis();
     }
     return;
   }
-  
+
   if (lastPressedButton != -1 && millis() - buttonReleaseTime < 200) {
     return;
   }
-  
+
   lastPressedButton = -1;
 
   if (displayingSequence) {
@@ -324,14 +331,14 @@ void handleLEDSequencePuzzle() {
         currentStep++;
         displayState = 0;
 
+
         if (currentStep >= sequenceLength) {
           displayingSequence = false;
           currentStep = 0;
         }
       }
     }
-  }
-  else {
+  } else {
     for (int i = 0; i < 3; i++) {
       if (digitalRead(buttons[i]) == LOW) {
         digitalWrite(leds[i], HIGH);
@@ -355,7 +362,7 @@ void handleLEDSequencePuzzle() {
           blinkState = 0;
           blinkTime = millis();
         }
-        
+
         break;
       }
     }
@@ -365,7 +372,7 @@ void handleLEDSequencePuzzle() {
 void handleStartSequence() {
   if (millis() - startSequenceTime > 300) {
     startSequenceTime = millis();
-    
+
     if (blinkState == 0) {
       digitalWrite(R_LED, HIGH);
       digitalWrite(G_LED, HIGH);
@@ -377,7 +384,7 @@ void handleStartSequence() {
       digitalWrite(B_LED, LOW);
       blinkState = 0;
       startSequenceCount++;
-      
+
       if (startSequenceCount >= 3) {
         showingStartSequence = false;
         displayingSequence = true;
@@ -392,7 +399,7 @@ void handleStartSequence() {
 void handleErrorBlink() {
   if (millis() - blinkTime > 200) {
     blinkTime = millis();
-    
+
     if (blinkState == 0) {
       digitalWrite(R_LED, HIGH);
       digitalWrite(G_LED, HIGH);
@@ -404,7 +411,7 @@ void handleErrorBlink() {
       digitalWrite(B_LED, LOW);
       blinkState = 0;
       blinkCount++;
-      
+
       if (blinkCount >= 3) {
         isBlinking = false;
         currentStep = 0;
@@ -419,31 +426,31 @@ void handleErrorBlink() {
 void handleVictoryAnimation() {
   if (millis() - victoryTime > 150) {
     victoryTime = millis();
-    
+
     digitalWrite(R_LED, LOW);
     digitalWrite(G_LED, LOW);
     digitalWrite(B_LED, LOW);
-    
+
     if (victoryStep < 9) {
       int ledIndex = victoryStep % 3;
       digitalWrite(leds[ledIndex], HIGH);
     }
-    
+
     victoryStep++;
-    
+
     if (victoryStep >= 9) {
       showingVictory = false;
-      
+
       digitalWrite(R_LED, LOW);
       digitalWrite(G_LED, LOW);
       digitalWrite(B_LED, LOW);
-      
+
       generateRandomSequence();
-      
+
       showingStartSequence = true;
       startSequenceCount = 0;
       startSequenceTime = millis();
-      
+
       // הוספתי את העלאת מספר החידה כאן, בסוף אנימציית הניצחון
       currentPuzzle++;
     }

@@ -36,9 +36,19 @@ void wifi_Setup() {
   generateRandomCode();
 }
 
-void SendData(int digit) {
+void SendGameOn() {
   HTTPClient http;
-  String url = "http://55.55.55.55/addDigit?digit=" + String(digit);
+  String url = "http://55.55.55.55/api?gameOn";
+  http.begin(client, url);
+  int httpCode = http.GET();
+  String payload = http.getString();
+  http.end();
+}
+void SendData(int digit) {
+    Serial.print(String(digit) + ": digit");
+
+  HTTPClient http;
+  String url = "http://55.55.55.55/api?missionCode =" + String(digit);
   http.begin(client, url);
   int httpCode = http.GET();
   String payload = http.getString();
