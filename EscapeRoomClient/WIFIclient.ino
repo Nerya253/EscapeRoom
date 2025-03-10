@@ -45,17 +45,16 @@ void wifi_Setup() {
 
 void SendGameOn() {
   HTTPClient http;
-  String url = "http://55.55.55.55/api?gameOn";
+  String url = "http://12.34.56.78/api?gameOn";
   http.begin(client, url);
   int httpCode = http.GET();
   String payload = http.getString();
   http.end();
 }
 void SendData(int digit) {
-    Serial.print(String(digit) + ": digit");
-
+  Serial.print(String(digit) + ": digit");
   HTTPClient http;
-  String url = "http://55.55.55.55/api?missionCode =" + String(digit);
+  String url = "http://12.34.56.78/api?missionCode = " + String(digit);
   http.begin(client, url);
   int httpCode = http.GET();
   String payload = http.getString();

@@ -29,7 +29,7 @@ void wifi_Setup();
 void SendGameOn();
 
 
-int currentPuzzle = 2;
+int currentPuzzle = 0;
 unsigned long currentLightMillis = 0;
 unsigned long lastSensorReadMillis = 0;
 
@@ -162,12 +162,6 @@ void loop() {
   if (gameIsOn == true) {
     switch (currentPuzzle) {
       case 0:
-        // pinMode(R_LED, OUTPUT);
-        // pinMode(G_LED, OUTPUT);
-        // pinMode(B_LED, OUTPUT);
-        // digitalWrite(R_LED, LOW);
-        // digitalWrite(G_LED, LOW);
-        // digitalWrite(B_LED, LOW);
         pinMode(A0, INPUT);
         pinMode(pinMuxA, OUTPUT);
         pinMode(pinMuxB, OUTPUT);
