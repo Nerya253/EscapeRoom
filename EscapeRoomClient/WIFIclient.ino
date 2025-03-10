@@ -13,10 +13,17 @@ int secretCode[4];
 unsigned long previousWifiMillis = 0;
 
 void generateRandomCode() {
-  randomSeed(analogRead(A0));
+  long seed = millis() * analogRead(A0) + micros();
+  randomSeed(seed);
+
+  Serial.print("הקוד הסודי החדש: ");
+
   for (int i = 0; i < 4; i++) {
     secretCode[i] = random(0, 10);
+    Serial.print(secretCode[i]);
+    if (i < 3) Serial.print("-");
   }
+  Serial.println();
 }
 
 void wifi_Setup() {

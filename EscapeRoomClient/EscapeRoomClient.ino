@@ -29,7 +29,7 @@ void wifi_Setup();
 void SendGameOn();
 
 
-int currentPuzzle = 0;
+int currentPuzzle = 2;
 unsigned long currentLightMillis = 0;
 unsigned long lastSensorReadMillis = 0;
 
@@ -49,7 +49,7 @@ unsigned long tempCorrectStartTime = 0;
 static unsigned long lastTempCheckMillis = 0;
 
 //חידה 3 - משחק אורות
-const int sequenceLength = 4;
+const int sequenceLength = 8;
 int sequence[sequenceLength];
 int leds[3] = { R_LED, G_LED, B_LED };
 int buttons[3] = { R_BTN, G_BTN, B_BTN };
@@ -76,7 +76,31 @@ bool showingStartSequence = true;
 int startSequenceCount = 0;
 unsigned long startSequenceTime = 0;
 
+
+//חידה  - משחק ג'ויסטיק
+bool joystickChallengeSolved = false;
+unsigned long cornerStartTime = 0;
+bool inCornerPosition = false;
+const int CORNER_TIMEOUT = 2000;
+
+int joystickX;
+int joystickY;
+const int CORNER_THRESHOLD = 200;
+const int CENTER_VALUE = 512;
+
+unsigned long lastMuxReadTime = 0;
+unsigned long lastJoystickCheckTime = 0;
+const int MUX_STABILIZE_TIME = 10;
+bool muxReadPending = false;
+byte pendingChannel = 0;
+int muxReadResult = 0;
+
+
+
+
 bool gameIsOn = false;
+bool gameOver = false;
+bool gameOverMessage = false;
 
 void setup() {
   Serial.begin(9600);
@@ -113,13 +137,18 @@ void setup() {
 void loop() {
   currentLightMillis = millis();
   static unsigned long statusPrintTimer = 0;
-
-  if (currentLightMillis - statusPrintTimer >= 5000) {
-    statusPrintTimer = currentLightMillis;
-    Serial.print("מצב נוכחי: חידה ");
-    Serial.println(currentPuzzle + 1);
+  if (!gameOver) {
+    if (currentLightMillis - statusPrintTimer >= 5000) {
+      statusPrintTimer = currentLightMillis;
+      Serial.print("מצב נוכחי: חידה ");
+      Serial.println(currentPuzzle + 1);
+    }
+  } else {
+    if (!gameOverMessage) {
+      Serial.print("המשחק נגמר תודה שהשתתפתם!");
+      gameOverMessage = true;
+    }
   }
-
   if (ReadMuxChannel(0) > 50) {
     if (!gameIsOn) {
       SendGameOn();
@@ -133,12 +162,12 @@ void loop() {
   if (gameIsOn == true) {
     switch (currentPuzzle) {
       case 0:
-        pinMode(R_LED, OUTPUT);
-        pinMode(G_LED, OUTPUT);
-        pinMode(B_LED, OUTPUT);
-        digitalWrite(R_LED, LOW);
-        digitalWrite(G_LED, LOW);
-        digitalWrite(B_LED, LOW);
+        // pinMode(R_LED, OUTPUT);
+        // pinMode(G_LED, OUTPUT);
+        // pinMode(B_LED, OUTPUT);
+        // digitalWrite(R_LED, LOW);
+        // digitalWrite(G_LED, LOW);
+        // digitalWrite(B_LED, LOW);
         pinMode(A0, INPUT);
         pinMode(pinMuxA, OUTPUT);
         pinMode(pinMuxB, OUTPUT);
@@ -160,7 +189,12 @@ void loop() {
         handleLEDSequencePuzzle();
         break;
       case 3:
-        handleDistancePuzzle();
+        pinMode(pinMuxA, OUTPUT);
+        pinMode(pinMuxB, OUTPUT);
+        pinMode(pinMuxC, OUTPUT);
+        pinMode(pinMuxInOut, INPUT);
+        digitalWrite(A0, LOW);
+        handleJoystickChallenge();
         break;
     }
   }
@@ -353,10 +387,9 @@ void handleLEDSequencePuzzle() {
             victoryStep = 0;
             victoryTime = millis();
             puzzleSolved(2);
-            // הסרתי את העלאת מספר החידה מכאן
-            // currentPuzzle++;
           }
         } else {
+          generateRandomSequence(); 
           isBlinking = true;
           blinkCount = 0;
           blinkState = 0;
@@ -451,13 +484,62 @@ void handleVictoryAnimation() {
       startSequenceCount = 0;
       startSequenceTime = millis();
 
-      // הוספתי את העלאת מספר החידה כאן, בסוף אנימציית הניצחון
       currentPuzzle++;
     }
   }
 }
 
-void handleDistancePuzzle() {
-  Serial.println("בדיקת מרחק");
-  delay(5000);
+void handleJoystickChallenge() {
+  static unsigned long lastPrintTime = 0;
+  unsigned long currentTime = millis();
+
+  static unsigned long lastJoystickReadTime = 0;
+  if (currentTime - lastJoystickReadTime >= 50) {
+    lastJoystickReadTime = currentTime;
+
+    joystickX = ReadMuxChannel(4);
+    joystickY = ReadMuxChannel(5);
+  }
+
+  if (currentTime - lastPrintTime >= 1000) {
+    lastPrintTime = currentTime;
+    Serial.print("X: ");
+    Serial.print(joystickX);
+    Serial.print(" Y: ");
+    Serial.println(joystickY);
+  }
+
+  if (isInCorner()) {
+    if (!inCornerPosition) {
+      inCornerPosition = true;
+      cornerStartTime = currentTime;
+      Serial.println("ג'ויסטיק הגיע לפינה! החזק למשך 2 שניות");
+    } else if (currentTime - cornerStartTime >= CORNER_TIMEOUT) {
+      if (!joystickChallengeSolved) {
+        joystickChallengeSolved = true;
+        inCornerPosition = false;
+        Serial.println("החידה נפתרה! הג'ויסטיק היה בפינה למשך מספיק זמן");
+        currentPuzzle++;
+        puzzleSolved(3);
+        gameOver = true;
+      }
+    }
+  } else {
+    if (inCornerPosition) {
+      inCornerPosition = false;
+      Serial.println("ג'ויסטיק יצא מהפינה - נסה שוב");
+    }
+  }
+}
+
+bool isInCorner() {
+  bool topRight = (joystickX > CENTER_VALUE + CORNER_THRESHOLD) && (joystickY > CENTER_VALUE + CORNER_THRESHOLD);
+
+  bool bottomRight = (joystickX > CENTER_VALUE + CORNER_THRESHOLD) && (joystickY < CENTER_VALUE - CORNER_THRESHOLD);
+
+  bool topLeft = (joystickX < CENTER_VALUE - CORNER_THRESHOLD) && (joystickY > CENTER_VALUE + CORNER_THRESHOLD);
+
+  bool bottomLeft = (joystickX < CENTER_VALUE - CORNER_THRESHOLD) && (joystickY < CENTER_VALUE - CORNER_THRESHOLD);
+
+  return topRight || bottomRight || topLeft || bottomLeft;
 }
