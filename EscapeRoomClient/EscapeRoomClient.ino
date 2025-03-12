@@ -268,7 +268,7 @@ void handleTemperaturePuzzle() {
     Serial.println(currentTemp);
 
     if (targetTemp == 0) {
-      targetTemp = currentTemp - 0.1;
+      targetTemp = currentTemp - 2.0;
       Serial.print("טמפרטורת יעד: ");
       Serial.println(targetTemp);
     }

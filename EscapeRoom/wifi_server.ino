@@ -41,7 +41,7 @@ void handleNotFound() {
 void handleMissionComplited() {
 Serial.println("GET");
   if(server.hasArg("gameOn")){
-    digitalWrite(LOCKING_PIN, LOW);
+    digitalWrite(LOCKING_PIN, HIGH);
   }
   if (server.hasArg("missionCode") && gamePassword.length() < 4) {
     if (server.arg("missionCode").length() == 1) {
@@ -523,7 +523,7 @@ void handleRoot() {
                 </div>)rawliteral";
     } else {
       if (server.arg("password") == gamePassword) {
-        digitalWrite(LOCKING_PIN, HIGH);
+        digitalWrite(LOCKING_PIN, LOW);
         form = R"rawliteral(
             <div class="header">
                 <h2>מערכת אבטחה</h2>

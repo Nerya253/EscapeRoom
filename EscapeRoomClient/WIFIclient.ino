@@ -31,12 +31,12 @@ void wifi_Setup() {
   WiFi.begin(ssid, pswd);
   previousWifiMillis = millis(); 
 
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   Serial.println("trying ...");
-  //   if (millis() - previousWifiMillis >= 100) {
-  //     previousWifiMillis = millis();
-  //   }
-  // }
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("trying ...");
+    if (millis() - previousWifiMillis >= 100) {
+      previousWifiMillis = millis();
+    }
+  }
 
   Serial.println("Connected to network");
 
@@ -54,7 +54,8 @@ void SendGameOn() {
 void SendData(int digit) {
   Serial.print(String(digit) + ": digit");
   HTTPClient http;
-  String url = "http://12.34.56.78/api?missionCode = " + String(digit);
+  String url = "http://12.34.56.78/api?missionCode=" + String(digit);
+  Serial.println(url);
   http.begin(client, url);
   int httpCode = http.GET();
   String payload = http.getString();
